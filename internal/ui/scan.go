@@ -283,58 +283,88 @@ func (m *ScanModel) saveCmd() tea.Cmd {
 // ─── View ─────────────────────────────────────────────────────────────────────
 
 func (m *ScanModel) View() string {
-	status := m.renderScanStatus()
-	keys := m.renderScanKeys()
+	dialogW := m.width - 12
+	dialogH := m.height - 6
+	if dialogW > 110 {
+		dialogW = 110
+	}
+	if dialogW < 54 {
+		dialogW = 54
+	}
+	if dialogH > 30 {
+		dialogH = 30
+	}
+	if dialogH < 12 {
+		dialogH = 12
+	}
+	return m.buildScanDialog(dialogW, dialogH)
+}
 
-	panelH := m.height - 3 // status(1) + keyHints(2)
-	innerW := m.width - 2
-	innerH := panelH - 2
+func (m *ScanModel) buildScanDialog(w, h int) string {
+	innerW := w - 2
+	innerH := h - 2
 
-	var content string
+	// status(1) + keyhints(2) = 3 行分確保
+	listH := innerH - 3
+	if listH < 2 {
+		listH = 2
+	}
+
+	var listContent string
 	if m.loading {
-		content = styleDim.Render("スキャン中...")
+		listContent = styleDim.Render("スキャン中...")
 	} else if len(m.projects) == 0 && len(m.skipped) == 0 {
 		scanDir := m.cfg.Settings.ScanDirectory
 		if scanDir == "" {
 			home, _ := os.UserHomeDir()
 			scanDir = home
 		}
-		content = styleDim.Render(fmt.Sprintf(
+		listContent = styleDim.Render(fmt.Sprintf(
 			"未登録のプロジェクトが見つかりませんでした\n\nスキャン先: %s\n\n設定ファイルの scan_directory を確認してください",
 			config.ExpandPath(scanDir),
 		))
 	} else {
-		content = m.renderProjectList(innerW, innerH)
+		listContent = m.renderProjectList(innerW, listH)
 	}
+
+	// listContent を listH 行に揃えて status/keys を常に下端に固定する
+	lines := strings.Split(listContent, "\n")
+	for len(lines) < listH {
+		lines = append(lines, "")
+	}
+	listContent = strings.Join(lines[:listH], "\n")
 
 	title := "スキャン"
 	if len(m.selected) > 0 {
 		title = fmt.Sprintf("スキャン  %d 件選択", len(m.selected))
 	}
-	panel := panelBorder(content, m.width, panelH, 0, title, true)
 
-	return lipgloss.JoinVertical(lipgloss.Left, panel, status, keys)
+	status := m.renderScanStatusW(innerW)
+	keys := m.renderScanKeysW(innerW)
+
+	content := lipgloss.JoinVertical(lipgloss.Left, listContent, status, keys)
+	return panelBorderColored(content, w, h, 0, title, colorYellow, colorYellow)
 }
 
-func (m *ScanModel) renderScanStatus() string {
+func (m *ScanModel) renderScanStatusW(w int) string {
 	if m.statusIsErr {
-		return styleStatusErr.Width(m.width).Render(m.status)
+		return styleStatusErr.Width(w).Render(m.status)
 	}
-	return styleStatusOk.Width(m.width).Render(m.status)
+	return styleStatusOk.Width(w).Render(m.status)
 }
 
-func (m *ScanModel) renderScanKeys() string {
+func (m *ScanModel) renderScanKeysW(w int) string {
 	type hint struct{ key, desc string }
 	hints := []hint{
-		{"j/k", "移動"}, {"Space", "選択"}, {"a", "全選択"}, {"x", "スキップ"}, {"Enter", "追加"}, {"Esc", "戻る"},
+		{"Space", "選択"}, {"a", "全選択"}, {"x", "スキップ"}, {"Enter", "追加"}, {"Esc", "戻る"},
 	}
 	var parts []string
 	for _, h := range hints {
 		parts = append(parts, styleKeyDesc.Render(h.desc)+styleKeySep.Render(": ")+styleKeyName.Render(h.key))
 	}
 	sep := styleKeySep.Render("  |  ")
-	topSep := lipgloss.NewStyle().Foreground(colorBorder).Render(strings.Repeat("─", m.width))
-	line := lipgloss.NewStyle().Padding(0, 1).Render(strings.Join(parts, sep))
+	topSep := styleKeyBarSep.Render(strings.Repeat("─", w))
+	line := styleKeyBarPad.Render(strings.Join(parts, sep))
 	return topSep + "\n" + line
 }
 
@@ -350,7 +380,7 @@ func (m *ScanModel) renderProjectList(totalW, innerH int) string {
 
 		check := styleDim.Render("[ ]")
 		if m.selected[i] {
-			check = lipgloss.NewStyle().Foreground(colorGreen).Bold(true).Render("[✓]")
+			check = styleGreenBold.Render("[✓]")
 		}
 
 		path := p.Path
@@ -387,10 +417,7 @@ func (m *ScanModel) renderProjectList(totalW, innerH int) string {
 		if m.cursor == headerCursorIdx {
 			lines = append(lines, styleSelectedItem.Width(totalW).Render(headerText))
 		} else {
-			lines = append(lines, lipgloss.NewStyle().
-				Foreground(colorFgDim).
-				Bold(true).
-				Render(headerText))
+			lines = append(lines, styleDimBold.Render(headerText))
 		}
 		lineIdx++
 
@@ -407,7 +434,7 @@ func (m *ScanModel) renderProjectList(totalW, innerH int) string {
 					path = "…" + path[len(path)-maxPathW+1:]
 				}
 
-				skipMark := lipgloss.NewStyle().Foreground(colorFgDim).Render("[S]")
+				skipMark := styleDim.Render("[S]")
 
 				if m.cursor == cursorPos {
 					lines = append(lines, styleSelectedItem.Width(totalW).Render(

@@ -82,4 +82,18 @@ var (
 
 	styleNormal = lipgloss.NewStyle().
 			Foreground(colorFg)
+
+	styleGreenBold = lipgloss.NewStyle().
+			Foreground(colorGreen).
+			Bold(true)
+
+	styleDimBold = lipgloss.NewStyle().
+			Foreground(colorFgDim).
+			Bold(true)
+
+	styleKeyBarSep = lipgloss.NewStyle().
+			Foreground(colorBorder)
+
+	styleKeyBarPad = lipgloss.NewStyle().
+			Padding(0, 1)
 )

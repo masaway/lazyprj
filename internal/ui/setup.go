@@ -94,14 +94,6 @@ func (m *SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *SetupModel) View() string {
-	title := lipgloss.NewStyle().
-		Background(colorBg2).
-		Foreground(colorCyan).
-		Bold(true).
-		Padding(0, 1).
-		Width(m.width).
-		Render("スキャンディレクトリの設定")
-
 	label := styleNormal.Render("プロジェクトをスキャンするディレクトリを入力してください。")
 	note := styleDim.Render("チルダ（~/）が使えます。設定後にスキャン画面（n キー）で追加できます。")
 
@@ -111,14 +103,6 @@ func (m *SetupModel) View() string {
 		Padding(0, 1).
 		Width(m.input.Width + 4).
 		Render(m.input.View())
-
-	var keys string
-	if m.canSkip {
-		keys = styleKeyDesc.Render("保存") + styleKeySep.Render(": ") + styleKeyName.Render("Enter") +
-			styleKeySep.Render("  |  ") + styleKeyDesc.Render("キャンセル") + styleKeySep.Render(": ") + styleKeyName.Render("Esc")
-	} else {
-		keys = styleKeyDesc.Render("保存") + styleKeySep.Render(": ") + styleKeyName.Render("Enter")
-	}
 
 	var statusLine string
 	if m.status != "" {
@@ -140,12 +124,25 @@ func (m *SetupModel) View() string {
 		inputBox,
 	)
 
-	panel := stylePanelFocused.
-		Width(m.width - 2).
-		Height(m.height - 4).
-		Render(body)
+	panelH := m.height - 3
+	panel := panelBorder(body, m.width, panelH, 0, "スキャンディレクトリの設定", true)
 
-	keysLine := lipgloss.NewStyle().Background(colorBg3).Width(m.width).Render(keys)
+	return lipgloss.JoinVertical(lipgloss.Left, panel, statusLine, m.renderKeys())
+}
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, panel, statusLine, keysLine)
+func (m *SetupModel) renderKeys() string {
+	var hints []struct{ key, desc string }
+	if m.canSkip {
+		hints = []struct{ key, desc string }{{"Enter", "保存"}, {"Esc", "キャンセル"}}
+	} else {
+		hints = []struct{ key, desc string }{{"Enter", "保存"}}
+	}
+	var parts []string
+	for _, h := range hints {
+		parts = append(parts, styleKeyDesc.Render(h.desc)+styleKeySep.Render(": ")+styleKeyName.Render(h.key))
+	}
+	sep := styleKeySep.Render("  |  ")
+	topSep := lipgloss.NewStyle().Foreground(colorBorder).Render(strings.Repeat("─", m.width))
+	line := lipgloss.NewStyle().Padding(0, 1).Render(strings.Join(parts, sep))
+	return topSep + "\n" + line
 }

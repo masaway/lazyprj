@@ -644,7 +644,7 @@ func (m *EditorModel) renderEditorStatus(width int) string {
 func (m *EditorModel) renderEditorKeyHints(width int) string {
 	type hint struct{ key, desc string }
 	hints := []hint{
-		{"j/k", "移動"}, {"a", "追加"}, {"e", "編集"}, {"d", "削除"},
+		{"a", "追加"}, {"e", "編集"}, {"d", "削除"},
 		{"Tab", "切替"}, {"Esc", "戻る"},
 	}
 	var parts []string
@@ -802,7 +802,7 @@ func renderDirPicker(f paneFormState, formWidth int) string {
 
 	hint := ""
 	if focused {
-		hint = "\n" + strings.Repeat(" ", 10) + styleDim.Render("j/k 移動  e で直接入力")
+		hint = "\n" + strings.Repeat(" ", 10) + styleDim.Render("e で直接入力")
 	}
 
 	return strings.Join(rows, "\n"+strings.Repeat(" ", 10)) + hint
@@ -851,7 +851,7 @@ func (m *EditorModel) renderPaneFormBox() string {
 	if f.dirInputMode {
 		sb.WriteString(styleDim.Render("Esc リストに戻る  Enter 保存"))
 	} else {
-		sb.WriteString(styleDim.Render("Tab 移動  Esc キャンセル  Enter 保存"))
+		sb.WriteString(styleDim.Render("Esc キャンセル  Enter 保存"))
 	}
 
 	return lipgloss.NewStyle().
@@ -1217,7 +1217,7 @@ func (m *EditorModel) renderWindowFormBox() string {
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(styleDim.Render("Tab 移動  Esc キャンセル  Enter 保存"))
+	sb.WriteString(styleDim.Render("Esc キャンセル  Enter 保存"))
 
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

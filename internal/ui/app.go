@@ -28,6 +28,7 @@ const (
 	screenEditor
 	screenScan
 	screenSetup
+	screenQuickstart
 )
 
 // App はメインのbubbletea Model
@@ -63,6 +64,7 @@ type App struct {
 	editor        *EditorModel
 	scanner       *ScanModel
 	setup         *SetupModel
+	quickstart    *QuickstartModel
 
 	showHelp bool
 }
@@ -267,6 +269,9 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.scanner != nil {
 			m.scanner.Resize(ws.Width, ws.Height)
 		}
+		if m.quickstart != nil {
+			m.quickstart.Resize(ws.Width, ws.Height)
+		}
 		return m, nil
 	}
 
@@ -304,6 +309,23 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentScreen = screenMain
 				m.setup = nil
 				return m, reloadCmd
+			}
+			return m, cmd
+		}
+
+	case screenQuickstart:
+		if m.quickstart != nil {
+			result, cmd := m.quickstart.Update(msg)
+			m.quickstart = result.(*QuickstartModel)
+			if m.quickstart.IsDone() {
+				proj := m.quickstart.Result()
+				m.currentScreen = screenMain
+				m.quickstart = nil
+				if proj != nil {
+					m.status = fmt.Sprintf("起動中: %s ...", proj.Name)
+					m.statusIsErr = false
+					return m, startSessionCmd(*proj, false)
+				}
 			}
 			return m, cmd
 		}
@@ -590,6 +612,14 @@ func (m *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.scanner.Resize(m.width, m.height)
 		m.currentScreen = screenScan
 		return m, m.scanner.LoadCmd()
+
+	case "c":
+		if m.cfg != nil {
+			m.quickstart = NewQuickstart(m.cfg)
+			m.quickstart.Resize(m.width, m.height)
+			m.currentScreen = screenQuickstart
+			return m, m.quickstart.Init()
+		}
 	}
 
 	return m, nil
@@ -710,11 +740,17 @@ func (m *App) View() string {
 		}
 	case screenScan:
 		if m.scanner != nil {
-			return m.scanner.View()
+			bg := m.renderMainScreen()
+			return overlayCenter(bg, m.scanner.View(), m.width, m.height)
 		}
 	case screenSetup:
 		if m.setup != nil {
 			return m.setup.View()
+		}
+	case screenQuickstart:
+		if m.quickstart != nil {
+			bg := m.renderMainScreen()
+			return overlayCenter(bg, m.quickstart.View(), m.width, m.height)
 		}
 	}
 
@@ -759,7 +795,7 @@ func (m *App) renderKeyHints() string {
 	type hint struct{ key, desc string }
 	hints := []hint{
 		{"Enter", "起動/アタッチ"}, {"e", "編集"},
-		{"a", "自動起動"}, {"n", "スキャン"}, {"?", "ヘルプ"},
+		{"a", "自動起動"}, {"c", "新規作成"}, {"n", "スキャン"}, {"?", "ヘルプ"},
 	}
 	var parts []string
 	for _, h := range hints {
@@ -779,8 +815,6 @@ func (m *App) renderHelpDialog(bg string) string {
 	}
 	sections := []section{
 		{"ナビゲーション", []entry{
-			{"j / k", "上下移動"},
-			{"h / l", "左右移動"},
 			{"g / G", "先頭 / 末尾"},
 			{"Tab", "フォーカス切替"},
 			{"1 / 2", "フォーカス直接指定"},
@@ -792,6 +826,7 @@ func (m *App) renderHelpDialog(bg string) string {
 		}},
 		{"プロジェクト", []entry{
 			{"e", "編集"},
+			{"c", "新規セッション作成"},
 			{"a", "自動起動トグル"},
 			{"A", "自動起動を全て起動"},
 			{"X", "スキップ済みへ移動"},
@@ -1326,11 +1361,7 @@ func (m *App) renderSyncConfirmDialog(bg string) string {
 		lines = append(lines, "")
 	}
 
-	if len(m.pendingSyncChoices) > 1 {
-		lines = append(lines, styleDim.Render("j/k: 移動  ←/→: 選択  Space: 切替  Enter: 保存  Esc: キャンセル"))
-	} else {
-		lines = append(lines, styleDim.Render("←/→: 選択  Space: 切替  Enter: 保存  Esc: キャンセル"))
-	}
+	lines = append(lines, styleDim.Render("←/→: 選択  Space: 切替  Enter: 保存  Esc: キャンセル"))
 
 	dialogW := 50
 	for _, l := range lines {
