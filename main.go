@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"lazyprj/internal/tmux"
-	"lazyprj/internal/ui"
+	"github.com/masaway/lazyprj/internal/tmux"
+	"github.com/masaway/lazyprj/internal/ui"
 )
 
 func main() {

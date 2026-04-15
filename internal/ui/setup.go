@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"lazyprj/internal/config"
+	"github.com/masaway/lazyprj/internal/config"
 )
 
 // SetupModel はスキャンディレクトリ設定画面

@@ -1,4 +1,4 @@
-module lazyprj
+module github.com/masaway/lazyprj
 
 go 1.24.2
 

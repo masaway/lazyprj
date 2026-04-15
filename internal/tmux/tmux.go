@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"lazyprj/internal/config"
+	"github.com/masaway/lazyprj/internal/config"
 )
 
 func run(args ...string) (int, string) {
