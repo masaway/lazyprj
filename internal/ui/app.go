@@ -780,6 +780,7 @@ func (m *App) renderHelpDialog(bg string) string {
 	sections := []section{
 		{"ナビゲーション", []entry{
 			{"j / k", "上下移動"},
+			{"h / l", "左右移動"},
 			{"g / G", "先頭 / 末尾"},
 			{"Tab", "フォーカス切替"},
 			{"1 / 2", "フォーカス直接指定"},
