@@ -1,0 +1,11 @@
+# Binary
+lazyprj
+
+# Personal config (contains private paths)
+config/personal.json
+
+# Claude Code local settings
+.claude/
+
+# Temp / scratch files
+追加.md

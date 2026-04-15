@@ -1,0 +1,39 @@
+{
+  "projects": [
+    {
+      "name": "myapp",
+      "path": "~/work/myapp",
+      "auto_start": false,
+      "commands": {},
+      "windows": [
+        {
+          "name": "dev",
+          "layout": "even-horizontal",
+          "panes": [
+            {
+              "dir": ".",
+              "command": "",
+              "execute": false
+            },
+            {
+              "dir": ".",
+              "command": "make dev",
+              "execute": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "scan_directory": "~/work",
+    "default_layout": "even-vertical",
+    "auto_attach": false,
+    "kill_existing": false,
+    "create_dev_pane": false,
+    "dev_pane_size": "",
+    "enable_parent_directory": false,
+    "enable_script_directory": false,
+    "enable_claude_in_bottom_pane": false
+  }
+}
