@@ -297,13 +297,13 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-		case "left":
+		case "left", "h":
 			if m.formMode == editorFormWindow && m.winForm.focus == 1 {
 				m.winForm.layoutIdx = (m.winForm.layoutIdx - 1 + len(windowLayouts)) % len(windowLayouts)
 				return m, nil
 			}
 
-		case "right":
+		case "right", "l":
 			if m.formMode == editorFormWindow && m.winForm.focus == 1 {
 				m.winForm.layoutIdx = (m.winForm.layoutIdx + 1) % len(windowLayouts)
 				return m, nil
@@ -1203,7 +1203,7 @@ func (m *EditorModel) renderWindowFormBox() string {
 	var layoutVal string
 	if f.focus == 1 {
 		layoutVal = lipgloss.NewStyle().Foreground(colorYellow).Bold(true).Render("◀ " + currentLayout + " ▶")
-		layoutVal += styleDim.Render("  ←/→")
+		layoutVal += styleDim.Render("  h/←  l/→")
 	} else {
 		layoutVal = styleYellow.Render(currentLayout)
 	}
