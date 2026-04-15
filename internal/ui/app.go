@@ -758,7 +758,7 @@ func (m *App) renderStatusBar() string {
 func (m *App) renderKeyHints() string {
 	type hint struct{ key, desc string }
 	hints := []hint{
-		{"j/k", "移動"}, {"Enter", "起動/アタッチ"}, {"e", "編集"},
+		{"Enter", "起動/アタッチ"}, {"e", "編集"},
 		{"a", "自動起動"}, {"n", "スキャン"}, {"?", "ヘルプ"},
 	}
 	var parts []string
