@@ -10,6 +10,28 @@
 
 ---
 
+## ブランチ戦略
+
+[GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow) を採用しています。
+
+1. `main` から作業ブランチを切る
+2. ブランチ上で実装・コミット
+3. PRを作成して `main` へマージ
+4. マージ後はブランチを削除
+
+```bash
+git switch -c feature/your-feature-name
+# ... 実装 ...
+git push origin feature/your-feature-name
+# → GitHub上でPRを作成
+```
+
+ブランチ名は `feature/`, `fix/`, `docs/` などのプレフィックスをつけると分かりやすいです。
+
+`main` への直pushはブランチ保護により禁止されています。
+
+---
+
 ## プルリクエスト
 
 ### 開発環境のセットアップ
