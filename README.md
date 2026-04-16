@@ -75,6 +75,34 @@ mv lazyprj ~/.local/bin/
 
 ---
 
+## 更新
+
+### コマンドで更新する（推奨）
+
+```bash
+lazyprj --update
+```
+
+最新バージョンを確認し、新しいバージョンがあれば確認後に自動でバイナリを更新します。
+
+### 手動で更新する
+
+インストール時と同じコマンドを再実行すると上書きインストールできます。
+
+```bash
+# 例: Linux (amd64)
+curl -L https://github.com/masaway/lazyprj/releases/latest/download/lazyprj_linux_amd64.tar.gz | tar xz
+mv lazyprj ~/.local/bin/
+```
+
+### バージョン確認
+
+```bash
+lazyprj --version
+```
+
+---
+
 ## 起動
 
 ```bash
