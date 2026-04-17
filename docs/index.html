@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>muxflow — tmuxをキーボードだけで使いこなす</title>
+  <meta name="description" content="tmuxのコマンドを覚えなくても、tmuxを使いこなせるTUIツール。プロジェクト一覧からEnter1回でセッション起動・アタッチ。">
+  <meta property="og:title" content="muxflow">
+  <meta property="og:description" content="lazygit風にtmuxをキーボード操作だけで扱えるTUIツール">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #1a1b26;
+      --bg2:      #24283b;
+      --bg3:      #1f2335;
+      --border:   #414868;
+      --blue:     #7aa2f7;
+      --fg:       #c0caf5;
+      --fg-dim:   #565f89;
+      --green:    #9ece6a;
+      --yellow:   #e0af68;
+      --cyan:     #7dcfff;
+      --purple:   #bb9af7;
+      --red:      #f7768e;
+      --selected: #30477a;
+      --font:     'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--blue); text-decoration: none; transition: color 150ms ease; }
+    a:hover { color: var(--cyan); }
+
+    .container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+    section { padding: 88px 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    /* ---- Nav ---- */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+    }
+    nav .container {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 1.05rem; font-weight: 700;
+      color: var(--fg); letter-spacing: -0.02em;
+    }
+    .nav-logo .accent { color: var(--blue); }
+    .nav-links { display: flex; gap: 20px; align-items: center; }
+    .nav-links a { font-size: 0.82rem; color: var(--fg-dim); }
+    .nav-links a:hover { color: var(--fg); }
+
+    .btn {
+      display: inline-block;
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: var(--font); font-size: 0.82rem;
+      cursor: pointer; background: transparent;
+      transition: border-color 150ms, color 150ms;
+      line-height: 1;
+    }
+    .btn:hover { border-color: var(--blue); color: var(--blue); }
+    .btn-primary { border-color: var(--blue); color: var(--blue); }
+    .btn-primary:hover { background: var(--selected); color: var(--fg); border-color: var(--blue); }
+
+    /* ---- Section header ---- */
+    .s-label { font-size: 0.73rem; color: var(--fg-dim); letter-spacing: 0.08em; margin-bottom: 10px; }
+    .s-title { font-size: 1.5rem; font-weight: 700; color: var(--fg); letter-spacing: -0.01em; margin-bottom: 40px; }
+
+    /* ---- Hero ---- */
+    #hero { padding: 96px 0 80px; }
+    .hero-eyebrow { font-size: 0.78rem; color: var(--fg-dim); margin-bottom: 22px; }
+    .hero-title {
+      font-size: 2.2rem; font-weight: 700; line-height: 1.3;
+      letter-spacing: -0.025em; margin-bottom: 18px;
+    }
+    .hero-title .hl { color: var(--blue); }
+    .hero-sub {
+      font-size: 0.88rem; color: var(--fg-dim);
+      max-width: 580px; margin-bottom: 36px; line-height: 1.75;
+    }
+    .hero-sub code { color: var(--cyan); }
+    .hero-ctas { display: flex; gap: 10px; margin-bottom: 56px; flex-wrap: wrap; }
+
+    /* Terminal window */
+    .term-window {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      margin-bottom: 2px;
+    }
+    .term-bar {
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 14px;
+      font-size: 0.72rem; color: var(--fg-dim);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .term-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+    .term-body { padding: 14px 16px; overflow-x: auto; }
+    .term-body pre {
+      font-family: var(--font); font-size: 0.76rem;
+      line-height: 1.55; white-space: pre; color: var(--fg);
+    }
+
+    /* TUI color spans */
+    .cg  { color: var(--green); }
+    .cy  { color: var(--yellow); }
+    .cb  { color: var(--blue); }
+    .cc  { color: var(--cyan); }
+    .cr  { color: var(--red); }
+    .cp  { color: var(--purple); }
+    .cd  { color: var(--fg-dim); }
+    .csel{ background: var(--selected); color: var(--fg); }
+
+    /* GIF placeholder */
+    .gif-ph {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; padding: 40px;
+      aspect-ratio: 16 / 7;
+    }
+    .gif-ph .ph-label { font-size: 0.82rem; color: var(--fg-dim); }
+    .gif-ph .ph-hint  { font-size: 0.72rem; color: var(--border); }
+
+    /* Hero install one-liner */
+    .hero-cmd {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--blue);
+      padding: 12px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-top: 24px;
+    }
+    .hero-cmd code { font-family: var(--font); font-size: 0.82rem; color: var(--fg); }
+    .hero-cmd .prompt { color: var(--fg-dim); margin-right: 6px; user-select: none; }
+
+    .copy-btn {
+      font-family: var(--font); font-size: 0.72rem;
+      color: var(--fg-dim); background: none; border: none;
+      cursor: pointer; white-space: nowrap;
+      transition: color 150ms;
+    }
+    .copy-btn:hover { color: var(--cyan); }
+
+    /* ---- Problem ---- */
+    .prob-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 600px) { .prob-grid { grid-template-columns: 1fr; } }
+
+    .prob-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      padding: 22px;
+      transition: border-color 150ms;
+    }
+    .prob-card:hover { border-color: var(--blue); }
+    .prob-comment { font-size: 0.72rem; color: var(--fg-dim); margin-bottom: 10px; }
+    .prob-code {
+      font-size: 0.78rem; color: var(--cyan);
+      background: var(--bg2); padding: 8px 10px;
+      border-left: 2px solid var(--border);
+      margin-bottom: 14px; white-space: pre;
+    }
+    .prob-text { font-size: 0.82rem; color: var(--fg-dim); line-height: 1.65; }
+
+    /* ---- Features ---- */
+    .feat-block {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+      margin-bottom: 72px;
+    }
+    .feat-block:last-child { margin-bottom: 0; }
+    .feat-block.rev { direction: rtl; }
+    .feat-block.rev > * { direction: ltr; }
+    @media (max-width: 600px) {
+      .feat-block, .feat-block.rev { grid-template-columns: 1fr; direction: ltr; }
+    }
+
+    .feat-num { font-size: 0.72rem; color: var(--blue); margin-bottom: 10px; }
+    .feat-title { font-size: 1.15rem; font-weight: 700; line-height: 1.4; margin-bottom: 12px; }
+    .feat-desc { font-size: 0.82rem; color: var(--fg-dim); line-height: 1.75; margin-bottom: 18px; }
+    .feat-desc code { color: var(--cyan); }
+    .feat-keys { font-size: 0.78rem; color: var(--fg-dim); }
+
+    kbd {
+      font-family: var(--font); font-size: 0.76rem;
+      background: var(--bg2); border: 1px solid var(--border);
+      padding: 2px 5px; color: var(--cyan);
+    }
+
+    /* ---- Keymap ---- */
+    .km-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .km-table tr { border-bottom: 1px solid var(--bg2); }
+    .km-table tr:nth-child(even) { background: var(--bg3); }
+    .km-table td { padding: 9px 14px; vertical-align: middle; }
+    .km-table .key-col { width: 180px; white-space: nowrap; }
+    .km-hint { font-size: 0.77rem; color: var(--fg-dim); margin-top: 14px; }
+
+    /* ---- Install ---- */
+    .inst-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+      overflow-x: auto; margin-bottom: 0; gap: 0;
+    }
+    .inst-tab {
+      font-family: var(--font); font-size: 0.78rem;
+      color: var(--fg-dim); background: none; border: none;
+      border-bottom: 2px solid transparent;
+      padding: 9px 14px; cursor: pointer; white-space: nowrap;
+      transition: color 150ms, border-color 150ms; margin-bottom: -1px;
+    }
+    .inst-tab:hover { color: var(--fg); }
+    .inst-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    .inst-panel { display: none; padding: 18px 0 0; }
+    .inst-panel.active { display: block; }
+
+    .inst-cmd {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-left: 3px solid var(--blue);
+      padding: 12px 14px;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; overflow: hidden;
+    }
+    .inst-cmd code {
+      font-family: var(--font); font-size: 0.78rem; color: var(--fg);
+      overflow-x: auto; white-space: nowrap; display: block;
+      -webkit-overflow-scrolling: touch;
+    }
+    .inst-cmd .prompt { color: var(--fg-dim); margin-right: 6px; user-select: none; }
+
+    .steps { list-style: none; display: flex; flex-direction: column; gap: 28px; }
+    .step { display: grid; grid-template-columns: 30px 1fr; gap: 16px; }
+    .step-num {
+      font-size: 0.72rem; color: var(--blue);
+      border: 1px solid var(--border);
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 3px;
+    }
+    .step-title { font-size: 0.88rem; font-weight: 700; color: var(--fg); margin-bottom: 10px; }
+    .step-note { font-size: 0.75rem; color: var(--fg-dim); margin-top: 8px; }
+
+    /* ---- Footer ---- */
+    footer { border-top: 1px solid var(--border); padding: 30px 0; }
+    footer .container {
+      display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 14px;
+    }
+    .foot-left { font-size: 0.78rem; color: var(--fg-dim); line-height: 1.7; }
+    .foot-links { display: flex; gap: 20px; }
+    .foot-links a { font-size: 0.78rem; color: var(--fg-dim); }
+    .foot-links a:hover { color: var(--fg); }
+
+    @media (max-width: 600px) {
+      .hero-title { font-size: 1.55rem; }
+      section { padding: 60px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== Nav ===== -->
+<nav>
+  <div class="container">
+    <div class="nav-logo">mux<span class="accent">flow</span></div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#keymap">Keymap</a>
+      <a href="#install">Install</a>
+      <a class="btn btn-primary" href="https://github.com/masaway/muxflow" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== Hero ===== -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-eyebrow">// tmux session manager</div>
+    <h1 class="hero-title">
+      tmuxのコマンドを覚えなくても、<br>
+      <span class="hl">tmuxを使いこなせる。</span>
+    </h1>
+    <p class="hero-sub">
+      <code>tmux new-session -s myproject</code> や <code>tmux attach-session -t myproject</code>——<br>
+      そんなコマンドを毎回調べていませんか？<br>
+      muxflow は、lazygit が git を直感的にしたように、<br>
+      tmux をキーボード操作だけで扱える TUI ツールです。
+    </p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#install">インストールする</a>
+      <a class="btn" href="https://github.com/masaway/muxflow" target="_blank" rel="noopener">GitHub でみる →</a>
+    </div>
+
+    <!-- TUI static preview -->
+    <div class="term-window">
+      <div class="term-bar">
+        <div class="term-dot"></div>
+        <div class="term-dot"></div>
+        <div class="term-dot"></div>
+        <span>muxflow</span>
+      </div>
+      <div class="term-body">
+<pre
+><span class="cd">╭─[1]─ Projects ──────────────────╮  ╭─[2]─ Detail ─────────────────────────────╮</span>
+<span class="cd">│</span>  <span class="csel"><span class="cg">●</span> myapp              <span class="cy">★</span>  </span>        <span class="cd">│  │</span>  <span class="cg">● Session: myapp</span>                       <span class="cd">│</span>
+<span class="cd">│</span>   <span class="cd">○</span> api-server                  <span class="cd">│  │    ~/work/myapp                          │</span>
+<span class="cd">│</span>   <span class="cd">○</span> frontend                    <span class="cd">│  │                                           │</span>
+<span class="cd">│                                  │  │  <span class="cp">Windows</span>                                  │</span>
+<span class="cd">│                                  │  │  <span class="cc">dev</span>  <span class="cd">[even-horizontal]</span>                  <span class="cd">│</span></span>
+<span class="cd">│                                  │  │</span>   <span class="cd">├ ./backend  </span>docker compose up  <span class="cr">▶</span>    <span class="cd">│</span>
+<span class="cd">│                                  │  │</span>   <span class="cd">└ ./frontend </span>npm run dev        <span class="cr">▶</span>    <span class="cd">│</span>
+<span class="cd">╰──────────────────────────────────╯  ╰───────────────────────────────────────────╯</span>
+  <span class="cc">j/k</span><span class="cd"> move  </span><span class="cc">Enter</span><span class="cd"> attach  </span><span class="cc">e</span><span class="cd"> edit  </span><span class="cc">s</span><span class="cd"> scan  </span><span class="cc">a</span><span class="cd"> autostart  </span><span class="cc">?</span><span class="cd"> help</span></pre>
+      </div>
+    </div>
+
+    <!-- Hero GIF placeholder (replace with actual GIF later) -->
+    <div class="gif-ph" id="gif-hero" data-gif="assets/demo-main.gif" data-alt="muxflow メイン画面操作デモ">
+      <span class="ph-label">▶  demo-main.gif</span>
+      <span class="ph-hint">// 実際の操作デモ GIF がここに入ります</span>
+    </div>
+
+    <div class="hero-cmd">
+      <code><span class="prompt">$</span>curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_amd64.tar.gz | tar xz &amp;&amp; mv muxflow ~/.local/bin/</code>
+      <button class="copy-btn" data-copy="curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_amd64.tar.gz | tar xz && mv muxflow ~/.local/bin/">[copy]</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Problem ===== -->
+<section id="problem">
+  <div class="container">
+    <div class="s-label">// the problem</div>
+    <h2 class="s-title">tmux は強力だけど、面倒が多い。</h2>
+    <div class="prob-grid">
+      <div class="prob-card">
+        <div class="prob-comment">// 作業中断</div>
+        <div class="prob-code">tmux new-session -s myapp
+tmux attach-session -t ...</div>
+        <p class="prob-text">セッション名とコマンド構文を毎回調べる。作業の流れが途切れる。</p>
+      </div>
+      <div class="prob-card">
+        <div class="prob-comment">// 環境の再構築</div>
+        <div class="prob-code">// 毎回手動でウィンドウ分割
+// docker compose up...
+// npm run dev...</div>
+        <p class="prob-text">フロント・バックエンドのペイン分割を、起動のたびにやり直す。</p>
+      </div>
+      <div class="prob-card">
+        <div class="prob-comment">// 再起動で消える</div>
+        <div class="prob-code">$ tmux ls
+no server running on ...</div>
+        <p class="prob-text">PC を再起動するとすべてのセッションが消える。また一から。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Features ===== -->
+<section id="features">
+  <div class="container">
+    <div class="s-label">// how muxflow helps</div>
+    <h2 class="s-title">3つの問題を、キーボードだけで解決する。</h2>
+
+    <!-- Feature 1 -->
+    <div class="feat-block">
+      <div>
+        <div class="feat-num">01</div>
+        <h3 class="feat-title">Git リポジトリを自動スキャン。<br>Enter 1回で起動。</h3>
+        <p class="feat-desc">
+          <kbd>s</kbd> キーを押すだけで指定ディレクトリ配下の Git リポジトリを自動検出。<br>
+          一覧に追加したら、あとは <kbd>Enter</kbd> を押すだけでセッションが起動してアタッチされます。<br>
+          コマンドを調べる必要は、もうありません。
+        </p>
+        <div class="feat-keys"><kbd>s</kbd> スキャン &nbsp;→&nbsp; <kbd>Space</kbd> 選択 &nbsp;→&nbsp; <kbd>Enter</kbd> 登録・起動</div>
+      </div>
+      <!-- GIF placeholder: スキャン → 選択 → 起動 -->
+      <div class="gif-ph" id="gif-scan" data-gif="assets/demo-scan.gif" data-alt="プロジェクトスキャンデモ">
+        <span class="ph-label">▶  demo-scan.gif</span>
+        <span class="ph-hint">// GIF がここに入ります</span>
+      </div>
+    </div>
+
+    <!-- Feature 2 -->
+    <div class="feat-block rev">
+      <div>
+        <div class="feat-num">02</div>
+        <h3 class="feat-title">コマンドを登録して、<br>毎回同じ環境を再現。</h3>
+        <p class="feat-desc">
+          <kbd>e</kbd> キーでエディタを開き、ウィンドウ・ペイン構成と起動コマンドを登録。<br>
+          <code>docker compose up</code> や <code>npm run dev</code> を登録しておけば、<br>
+          次回から <kbd>Enter</kbd> 1回でフロント・バック同時に起動します。<br>
+          「このプロジェクトの起動コマンドなんだっけ？」は過去の話。
+        </p>
+        <div class="feat-keys"><kbd>e</kbd> エディタを開く &nbsp;→&nbsp; コマンド登録 &nbsp;→&nbsp; <kbd>w</kbd> 保存</div>
+      </div>
+      <!-- GIF placeholder: エディタでコマンド登録 → マルチペイン起動 -->
+      <div class="gif-ph" id="gif-editor" data-gif="assets/demo-editor.gif" data-alt="エディタ画面デモ">
+        <span class="ph-label">▶  demo-editor.gif</span>
+        <span class="ph-hint">// GIF がここに入ります</span>
+      </div>
+    </div>
+
+    <!-- Feature 3 -->
+    <div class="feat-block">
+      <div>
+        <div class="feat-num">03</div>
+        <h3 class="feat-title"><span style="color:var(--yellow)">★</span> マークで、<br>再起動後も即座に復旧。</h3>
+        <p class="feat-desc">
+          <kbd>a</kbd> キーでプロジェクトに <span style="color:var(--yellow)">★</span> を付けておくと、tmux セッションがゼロの状態で起動したとき自動で一括起動します。<br>
+          朝 PC を開いたら <kbd>A</kbd> を押すだけで、昨日の続きから再開できます。
+        </p>
+        <div class="feat-keys"><kbd>a</kbd> 自動起動フラグ &nbsp;→&nbsp; <kbd>A</kbd> 一括起動</div>
+      </div>
+      <!-- GIF placeholder: a で★ → A で一括起動 -->
+      <div class="gif-ph" id="gif-autostart" data-gif="assets/demo-autostart.gif" data-alt="自動起動デモ">
+        <span class="ph-label">▶  demo-autostart.gif</span>
+        <span class="ph-hint">// GIF がここに入ります</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Keymap ===== -->
+<section id="keymap">
+  <div class="container">
+    <div class="s-label">// key bindings</div>
+    <h2 class="s-title">覚えるキーは、少ない。</h2>
+    <table class="km-table">
+      <tbody>
+        <tr>
+          <td class="key-col"><kbd>Enter</kbd></td>
+          <td>セッション起動、または起動中ならアタッチ</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>j</kbd> / <kbd>k</kbd></td>
+          <td>カーソル上下移動</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>e</kbd></td>
+          <td>ウィンドウ・ペイン編集画面を開く</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>s</kbd></td>
+          <td>Git リポジトリをスキャンしてプロジェクト追加</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>a</kbd></td>
+          <td>自動起動フラグのトグル（<span style="color:var(--yellow)">★</span>）</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>A</kbd></td>
+          <td><span style="color:var(--yellow)">★</span> のついた全プロジェクトを一括起動</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>x</kbd></td>
+          <td>セッション停止</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>n</kbd></td>
+          <td>新規セッション作成（クイックスタート）</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>X</kbd></td>
+          <td>プロジェクトを非表示に移動 / 復元</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>K</kbd> / <kbd>J</kbd></td>
+          <td>プロジェクトの並び順を変更</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>?</kbd></td>
+          <td>ヘルプオーバーレイを表示</td>
+        </tr>
+        <tr>
+          <td class="key-col"><kbd>q</kbd></td>
+          <td>終了</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="km-hint">// アプリ内で <kbd>?</kbd> を押すとフルキーバインド一覧が表示されます</p>
+  </div>
+</section>
+
+<!-- ===== Install ===== -->
+<section id="install">
+  <div class="container">
+    <div class="s-label">// install</div>
+    <h2 class="s-title">30秒ではじめる。</h2>
+
+    <ol class="steps">
+      <!-- Step 1: tmux -->
+      <li class="step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">tmux をインストール</div>
+          <div class="inst-tabs" id="tmux-tabs">
+            <button class="inst-tab active" data-target="tmux-apt">Ubuntu / Debian</button>
+            <button class="inst-tab" data-target="tmux-brew">macOS</button>
+          </div>
+          <div class="inst-panel active" id="tmux-apt">
+            <div class="inst-cmd">
+              <code><span class="prompt">$</span>sudo apt install tmux</code>
+              <button class="copy-btn" data-copy="sudo apt install tmux">[copy]</button>
+            </div>
+          </div>
+          <div class="inst-panel" id="tmux-brew">
+            <div class="inst-cmd">
+              <code><span class="prompt">$</span>brew install tmux</code>
+              <button class="copy-btn" data-copy="brew install tmux">[copy]</button>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <!-- Step 2: muxflow -->
+      <li class="step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">muxflow をインストール</div>
+          <div class="inst-tabs" id="mf-tabs">
+            <button class="inst-tab active" data-target="mf-linux-amd64">Linux (amd64)</button>
+            <button class="inst-tab" data-target="mf-linux-arm64">Linux (arm64)</button>
+            <button class="inst-tab" data-target="mf-mac-arm">macOS (Apple Silicon)</button>
+            <button class="inst-tab" data-target="mf-mac-intel">macOS (Intel)</button>
+            <button class="inst-tab" data-target="mf-go">go install</button>
+          </div>
+          <div class="inst-panel active" id="mf-linux-amd64">
+            <div class="inst-cmd">
+              <code><span class="prompt">$</span>curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_amd64.tar.gz | tar xz &amp;&amp; mv muxflow ~/.local/bin/</code>
+              <button class="copy-btn" data-copy="curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_amd64.tar.gz | tar xz && mv muxflow ~/.local/bin/">[copy]</button>
+            </div>
+          </div>
+          <div class="inst-panel" id="mf-linux-arm64">
+            <div class="inst-cmd">
+              <code><span class="prompt">$</span>curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_arm64.tar.gz | tar xz &amp;&amp; mv muxflow ~/.local/bin/</code>
+              <button class="copy-btn" data-copy="curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_arm64.tar.gz | tar xz && mv muxflow ~/.local/bin/">[copy]</button>
+            </div>
+          </div>
+          <div class="inst-panel" id="mf-mac-arm">
+            <div class="inst-cmd">
+              <code><span class="prompt">$</span>curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_darwin_arm64.tar.gz | tar xz &amp;&amp; mv muxflow /usr/local/bin/</code>
+              <button class="copy-btn" data-copy="curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_darwin_arm64.tar.gz | tar xz && mv muxflow /usr/local/bin/">[copy]</button>
+            </div>
+          </div>
+          <div class="inst-panel" id="mf-mac-intel">
+            <div class="inst-cmd">
+              <code><span class="prompt">$</span>curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_darwin_amd64.tar.gz | tar xz &amp;&amp; mv muxflow /usr/local/bin/</code>
+              <button class="copy-btn" data-copy="curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_darwin_amd64.tar.gz | tar xz && mv muxflow /usr/local/bin/">[copy]</button>
+            </div>
+          </div>
+          <div class="inst-panel" id="mf-go">
+            <div class="inst-cmd">
+              <code><span class="prompt">$</span>go install github.com/masaway/muxflow@latest</code>
+              <button class="copy-btn" data-copy="go install github.com/masaway/muxflow@latest">[copy]</button>
+            </div>
+            <p class="step-note">// Go 1.24.2 以上が必要です</p>
+          </div>
+        </div>
+      </li>
+
+      <!-- Step 3: run -->
+      <li class="step">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">起動する</div>
+          <div class="inst-cmd">
+            <code><span class="prompt">$</span>muxflow</code>
+            <button class="copy-btn" data-copy="muxflow">[copy]</button>
+          </div>
+          <p class="step-note">// 初回起動時はスキャンディレクトリの設定画面が自動で開きます（例: ~/work）</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<footer>
+  <div class="container">
+    <div class="foot-left">
+      <strong style="color:var(--fg)">muxflow</strong><br>
+      MIT License &nbsp;·&nbsp; Inspired by <a href="https://github.com/jesseduffield/lazygit" target="_blank" rel="noopener">lazygit</a>
+    </div>
+    <div class="foot-links">
+      <a href="https://github.com/masaway/muxflow" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/masaway/muxflow/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/masaway/muxflow/issues" target="_blank" rel="noopener">Issues</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // GIF auto-replace: when assets/demo-*.gif files are added, placeholders become <img> automatically
+  document.querySelectorAll('.gif-ph').forEach(el => {
+    const src = el.dataset.gif;
+    if (!src) return;
+    const img = new Image();
+    img.alt = el.dataset.alt || '';
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+    img.onload = () => el.replaceWith(img);
+    img.src = src;
+  });
+
+  // Copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const text = btn.dataset.copy;
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '[copied!]';
+        btn.style.color = 'var(--green)';
+        setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+      });
+    });
+  });
+
+  // Tab switching
+  document.querySelectorAll('.inst-tabs').forEach(tabs => {
+    tabs.querySelectorAll('.inst-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        // deactivate all tabs in this group
+        tabs.querySelectorAll('.inst-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        // find the parent step and toggle panels
+        const step = tab.closest('.step') || tab.closest('li');
+        step.querySelectorAll('.inst-panel').forEach(p => p.classList.remove('active'));
+        const target = document.getElementById(tab.dataset.target);
+        if (target) target.classList.add('active');
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
