@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 
-	"github.com/masaway/lazyprj/internal/config"
+	"github.com/masaway/muxflow/internal/config"
 )
 
 var windowLayouts = []string{

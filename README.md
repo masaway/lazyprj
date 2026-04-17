@@ -1,4 +1,4 @@
-# lazyprj
+# muxflow
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -24,34 +24,34 @@ brew install tmux
 
 ## インストール
 
-[GitHub Releases](https://github.com/masaway/lazyprj/releases/latest) からプラットフォームに合ったアーカイブをダウンロードして展開し、PATHの通った場所に移動します。
+[GitHub Releases](https://github.com/masaway/muxflow/releases/latest) からプラットフォームに合ったアーカイブをダウンロードして展開し、PATHの通った場所に移動します。
 
 **Linux (amd64)**
 
 ```bash
-curl -L https://github.com/masaway/lazyprj/releases/latest/download/lazyprj_linux_amd64.tar.gz | tar xz
-mv lazyprj ~/.local/bin/
+curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_amd64.tar.gz | tar xz
+mv muxflow ~/.local/bin/
 ```
 
 **Linux (arm64)**
 
 ```bash
-curl -L https://github.com/masaway/lazyprj/releases/latest/download/lazyprj_linux_arm64.tar.gz | tar xz
-mv lazyprj ~/.local/bin/
+curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_arm64.tar.gz | tar xz
+mv muxflow ~/.local/bin/
 ```
 
 **macOS (Apple Silicon)**
 
 ```bash
-curl -L https://github.com/masaway/lazyprj/releases/latest/download/lazyprj_darwin_arm64.tar.gz | tar xz
-mv lazyprj /usr/local/bin/
+curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_darwin_arm64.tar.gz | tar xz
+mv muxflow /usr/local/bin/
 ```
 
 **macOS (Intel)**
 
 ```bash
-curl -L https://github.com/masaway/lazyprj/releases/latest/download/lazyprj_darwin_amd64.tar.gz | tar xz
-mv lazyprj /usr/local/bin/
+curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_darwin_amd64.tar.gz | tar xz
+mv muxflow /usr/local/bin/
 ```
 
 **Windows**
@@ -62,13 +62,13 @@ mv lazyprj /usr/local/bin/
 
 ```bash
 # go install
-go install github.com/masaway/lazyprj@latest
+go install github.com/masaway/muxflow@latest
 
 # ソースビルド
-git clone https://github.com/masaway/lazyprj
-cd lazyprj
-go build -o lazyprj .
-mv lazyprj ~/.local/bin/
+git clone https://github.com/masaway/muxflow
+cd muxflow
+go build -o muxflow .
+mv muxflow ~/.local/bin/
 ```
 
 > Go 1.24.2 以上が必要です。
@@ -80,7 +80,7 @@ mv lazyprj ~/.local/bin/
 ### コマンドで更新する（推奨）
 
 ```bash
-lazyprj --update
+muxflow --update
 ```
 
 最新バージョンを確認し、新しいバージョンがあれば確認後に自動でバイナリを更新します。
@@ -91,14 +91,14 @@ lazyprj --update
 
 ```bash
 # 例: Linux (amd64)
-curl -L https://github.com/masaway/lazyprj/releases/latest/download/lazyprj_linux_amd64.tar.gz | tar xz
-mv lazyprj ~/.local/bin/
+curl -L https://github.com/masaway/muxflow/releases/latest/download/muxflow_linux_amd64.tar.gz | tar xz
+mv muxflow ~/.local/bin/
 ```
 
 ### バージョン確認
 
 ```bash
-lazyprj --version
+muxflow --version
 ```
 
 ---
@@ -106,7 +106,7 @@ lazyprj --version
 ## 起動
 
 ```bash
-lazyprj
+muxflow
 ```
 
 > `command not found` と表示される場合は、インストール先がPATHに含まれているか確認してください。
@@ -149,7 +149,7 @@ PC再起動後にセッションをまとめて立ち上げたい場合は、プ
 使い慣れてきたら、プロジェクトごとに起動コマンドを登録しておくのがおすすめです。  
 メイン画面でプロジェクトを選択して `e` キーを押すと、**いつでも**エディタ画面を開けます。
 
-**これが lazyprj の一番の使いどころです。**  
+**これが muxflow の一番の使いどころです。**  
 `docker compose up` や `npm run dev` といったコマンドを登録しておくと、次回からセッション起動と同時に自動実行されます。「このプロジェクトの起動コマンドなんだっけ？」を考える必要がなくなります。
 
 FEとBEが別れているプロジェクトでも、ウィンドウを分けてそれぞれのコマンドを登録しておけば、`Enter` 一発で両方まとめて起動できます。

@@ -9,9 +9,9 @@ import (
 	"github.com/creativeprojects/go-selfupdate"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/masaway/lazyprj/internal/config"
-	"github.com/masaway/lazyprj/internal/tmux"
-	"github.com/masaway/lazyprj/internal/ui"
+	"github.com/masaway/muxflow/internal/config"
+	"github.com/masaway/muxflow/internal/tmux"
+	"github.com/masaway/muxflow/internal/ui"
 )
 
 var version = "dev"
@@ -22,7 +22,7 @@ func selfUpdate() {
 		return
 	}
 	fmt.Println("最新バージョンを確認中...")
-	latest, found, err := selfupdate.DetectLatest(context.Background(), selfupdate.ParseSlug("masaway/lazyprj"))
+	latest, found, err := selfupdate.DetectLatest(context.Background(), selfupdate.ParseSlug("masaway/muxflow"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "バージョン確認エラー:", err)
 		os.Exit(1)
@@ -55,13 +55,13 @@ func main() {
 	var socketName string
 	var showVersion bool
 	var doUpdate bool
-	flag.StringVar(&socketName, "L", "", "使用する tmux ソケット名（例: lazyprj-demo）")
+	flag.StringVar(&socketName, "L", "", "使用する tmux ソケット名（例: muxflow-demo）")
 	flag.BoolVar(&showVersion, "version", false, "バージョンを表示して終了")
 	flag.BoolVar(&doUpdate, "update", false, "最新バージョンに更新して終了")
 	flag.Parse()
 
 	if showVersion {
-		fmt.Println("lazyprj", version)
+		fmt.Println("muxflow", version)
 		os.Exit(0)
 	}
 

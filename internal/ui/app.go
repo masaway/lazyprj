@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 
-	"github.com/masaway/lazyprj/internal/config"
-	"github.com/masaway/lazyprj/internal/tmux"
+	"github.com/masaway/muxflow/internal/config"
+	"github.com/masaway/muxflow/internal/tmux"
 )
 
 type focusPanel int

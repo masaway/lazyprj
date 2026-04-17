@@ -23,5 +23,5 @@ assignees: ''
 ## 環境
 
 - OS: <!-- 例: Ubuntu 22.04, macOS 14.x -->
-- lazyprj バージョン: <!-- 例: v0.1.0 -->
+- muxflow バージョン: <!-- 例: v0.1.0 -->
 - tmux バージョン: <!-- tmux -V の出力 -->

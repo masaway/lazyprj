@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # ビルド
-go build -o lazyprj .
+go build -o muxflow .
 
 # 実行（リポジトリルートから）
-./lazyprj
+./muxflow
 
 # 依存関係の更新
 go mod tidy
@@ -48,7 +48,7 @@ tmuxのアタッチは `tea.Quit` 後に実行する必要があるため、`App
 
 ### 設定ファイル
 
-`internal/config/config.go` の `GetConfigPath()` が `~/.config/lazyprj/config.json` を返す。`XDG_CONFIG_HOME` が設定されている場合は `$XDG_CONFIG_HOME/lazyprj/config.json` を使用。保存も同パスに行われる。
+`internal/config/config.go` の `GetConfigPath()` が `~/.config/muxflow/config.json` を返す。`XDG_CONFIG_HOME` が設定されている場合は `$XDG_CONFIG_HOME/muxflow/config.json` を使用。保存も同パスに行われる。
 
 初回起動時（ファイルが存在しない場合）は `ScanDirectory` が空の `Config` を返し、`app.go` が `screenSetup` へ自動遷移する。
 
