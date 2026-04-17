@@ -84,7 +84,7 @@ type windowFormState struct {
 	dirCursor    int
 	dirInput     textinput.Model
 	dirInputMode bool
-	focus        int // 0=name, 1=layout, 2=dir
+	focus        int // 0=name, 1=dir, 2=layout
 	isNew        bool
 }
 
@@ -204,7 +204,7 @@ func newWindowForm(w config.Window, isNew bool, projPath string) windowFormState
 	focusIdx := 0
 	if !found && initDir != "." {
 		dirInputMode = true
-		focusIdx = 2
+		focusIdx = 1
 		dirInput.SetValue(initDir)
 		dirInput.CursorEnd()
 		dirInput.Focus()
@@ -266,7 +266,7 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.paneForm.dirInput.Blur()
 				return m, nil
 			}
-			if m.formMode == editorFormWindow && m.winForm.dirInputMode && m.winForm.focus == 2 {
+			if m.formMode == editorFormWindow && m.winForm.dirInputMode && m.winForm.focus == 1 {
 				m.winForm.dirInputMode = false
 				m.winForm.dirInput.Blur()
 				return m, nil
@@ -303,7 +303,7 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.paneForm.dirInputMode = true
 				return m, nil
 			}
-			if m.formMode == editorFormWindow && m.winForm.focus == 2 && !m.winForm.dirInputMode {
+			if m.formMode == editorFormWindow && m.winForm.focus == 1 && !m.winForm.dirInputMode {
 				current := "."
 				if len(m.winForm.dirOptions) > 0 {
 					current = m.winForm.dirOptions[m.winForm.dirCursor]
@@ -358,13 +358,13 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "left", "h":
-			if m.formMode == editorFormWindow && m.winForm.focus == 1 {
+			if m.formMode == editorFormWindow && m.winForm.focus == 2 {
 				m.winForm.layoutIdx = (m.winForm.layoutIdx - 1 + len(windowLayouts)) % len(windowLayouts)
 				return m, nil
 			}
 
 		case "right", "l":
-			if m.formMode == editorFormWindow && m.winForm.focus == 1 {
+			if m.formMode == editorFormWindow && m.winForm.focus == 2 {
 				m.winForm.layoutIdx = (m.winForm.layoutIdx + 1) % len(windowLayouts)
 				return m, nil
 			}
@@ -377,7 +377,7 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			if m.formMode == editorFormWindow && m.winForm.focus == 2 && !m.winForm.dirInputMode {
+			if m.formMode == editorFormWindow && m.winForm.focus == 1 && !m.winForm.dirInputMode {
 				n := len(m.winForm.dirOptions)
 				if n > 0 && m.winForm.dirCursor < n-1 {
 					m.winForm.dirCursor++
@@ -392,7 +392,7 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			if m.formMode == editorFormWindow && m.winForm.focus == 2 && !m.winForm.dirInputMode {
+			if m.formMode == editorFormWindow && m.winForm.focus == 1 && !m.winForm.dirInputMode {
 				if m.winForm.dirCursor > 0 {
 					m.winForm.dirCursor--
 				}
@@ -412,7 +412,7 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	} else {
 		if m.winForm.focus == 0 {
 			m.winForm.name, cmd = m.winForm.name.Update(msg)
-		} else if m.winForm.dirInputMode && m.winForm.focus == 2 {
+		} else if m.winForm.dirInputMode && m.winForm.focus == 1 {
 			m.winForm.dirInput, cmd = m.winForm.dirInput.Update(msg)
 		}
 	}
@@ -446,7 +446,7 @@ func (m *EditorModel) cycleWindowFormFocus(fwd bool) {
 	m.winForm.dirInput.Blur()
 	if m.winForm.focus == 0 {
 		m.winForm.name.Focus()
-	} else if m.winForm.focus == 2 && m.winForm.dirInputMode {
+	} else if m.winForm.focus == 1 && m.winForm.dirInputMode {
 		m.winForm.dirInput.Focus()
 	}
 }
@@ -945,7 +945,8 @@ func (m *EditorModel) renderPanePanel(totalW, totalH int) string {
 }
 
 // renderDirPickerGeneric はDir選択ピッカーをレンダリングする汎用関数（最大5件表示）
-func renderDirPickerGeneric(dirOptions []string, dirCursor int, dirInput textinput.Model, dirInputMode bool, focused bool, formWidth int) string {
+// prefixWidth はラベル＋パディングの幅で、継続行のインデントに使用する
+func renderDirPickerGeneric(dirOptions []string, dirCursor int, dirInput textinput.Model, dirInputMode bool, focused bool, prefixWidth int) string {
 	if dirInputMode {
 		hint := styleDim.Render("  Esc でリストに戻る")
 		return dirInput.View() + hint
@@ -971,6 +972,7 @@ func renderDirPickerGeneric(dirOptions []string, dirCursor int, dirInput textinp
 		end = len(opts)
 	}
 
+	indent := strings.Repeat(" ", prefixWidth)
 	var rows []string
 	for i := start; i < end; i++ {
 		var line string
@@ -988,15 +990,16 @@ func renderDirPickerGeneric(dirOptions []string, dirCursor int, dirInput textinp
 
 	hint := ""
 	if focused {
-		hint = "\n" + strings.Repeat(" ", 10) + styleDim.Render("e で直接入力")
+		hint = "\n" + indent + styleDim.Render("e で直接入力")
 	}
 
-	return strings.Join(rows, "\n"+strings.Repeat(" ", 10)) + hint
+	return strings.Join(rows, "\n"+indent) + hint
 }
 
 // renderDirPicker はDir選択ピッカーをレンダリングする（最大5件表示）
 func renderDirPicker(f paneFormState, formWidth int) string {
-	return renderDirPickerGeneric(f.dirOptions, f.dirCursor, f.dirInput, f.dirInputMode, f.focus == 0, formWidth)
+	// "Dir     "(8) + "  "(2) = 10
+	return renderDirPickerGeneric(f.dirOptions, f.dirCursor, f.dirInput, f.dirInputMode, f.focus == 0, 10)
 }
 
 func (m *EditorModel) renderPaneFormBox() string {
@@ -1385,14 +1388,23 @@ func (m *EditorModel) renderWindowFormBox() string {
 	}
 	sb.WriteString(nameLabel + "  " + f.name.View() + "\n\n")
 
+	// Dir picker
+	// "Dir       "(10 visual) + "  "(2) = 12 → 継続行インデントも12
+	dirLabel := styleDim.Render("Dir       ")
+	if f.focus == 1 {
+		dirLabel = lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("Dir       ")
+	}
+	// "Dir       "(3+7=10 visual) + "  "(2) = 12
+	sb.WriteString(dirLabel + "  " + renderDirPickerGeneric(f.dirOptions, f.dirCursor, f.dirInput, f.dirInputMode, f.focus == 1, 12) + "\n\n")
+
 	// Layout selector
 	layoutLabel := styleDim.Render("レイアウト ")
-	if f.focus == 1 {
+	if f.focus == 2 {
 		layoutLabel = lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("レイアウト ")
 	}
 	currentLayout := windowLayouts[f.layoutIdx]
 	var layoutVal string
-	if f.focus == 1 {
+	if f.focus == 2 {
 		layoutVal = lipgloss.NewStyle().Foreground(colorYellow).Bold(true).Render("◀ " + currentLayout + " ▶")
 		layoutVal += styleDim.Render("  h/←  l/→")
 	} else {
@@ -1401,20 +1413,13 @@ func (m *EditorModel) renderWindowFormBox() string {
 	sb.WriteString(layoutLabel + "  " + layoutVal + "\n\n")
 
 	// レイアウトプレビュー（常に表示、フォーカス時はハイライト）
-	preview := renderLayoutPreview(currentLayout, f.focus == 1)
+	preview := renderLayoutPreview(currentLayout, f.focus == 2)
 	// 左インデント
 	for _, line := range strings.Split(preview, "\n") {
 		sb.WriteString("           " + line + "\n")
 	}
 
 	sb.WriteString("\n")
-
-	// Dir picker
-	dirLabel := styleDim.Render("Dir        ")
-	if f.focus == 2 {
-		dirLabel = lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("Dir        ")
-	}
-	sb.WriteString(dirLabel + "  " + renderDirPickerGeneric(f.dirOptions, f.dirCursor, f.dirInput, f.dirInputMode, f.focus == 2, w) + "\n\n")
 
 	if f.dirInputMode {
 		sb.WriteString(styleDim.Render("Esc リストに戻る  Enter 保存"))
