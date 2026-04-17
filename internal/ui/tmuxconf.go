@@ -12,10 +12,11 @@ import (
 type tmuxConfState int
 
 const (
-	tmuxConfStateSelect  tmuxConfState = iota // 初期選択画面
-	tmuxConfStateConfirm                      // 既存ファイルあり確認ダイアログ
-	tmuxConfStateDone                         // 適用完了
-	tmuxConfStatePreview                      // 設定内容プレビュー
+	tmuxConfStateSelect   tmuxConfState = iota // 初期選択画面
+	tmuxConfStateConfirm                       // 既存ファイルあり確認ダイアログ
+	tmuxConfStateFetching                      // gistから取得中
+	tmuxConfStateDone                          // 適用完了
+	tmuxConfStatePreview                       // 設定内容プレビュー
 )
 
 // TmuxConfModel は tmux 推奨設定画面
@@ -27,6 +28,11 @@ type TmuxConfModel struct {
 	confirmCursor int // 0=backup+apply, 1=overwrite, 2=cancel
 	doneCursor    int // 0=continue, 1=restore
 	wasBackedUp   bool
+	pendingBackup bool // fetch後に適用するバックアップ設定
+
+	fetchedConfig     string
+	fetchedCheatsheet string
+	cheatsheetApplied bool
 
 	previewScroll int
 	previewLines  []string
@@ -35,9 +41,16 @@ type TmuxConfModel struct {
 	statusIsErr bool
 }
 
+type tmuxConfFetchedMsg struct {
+	config     string
+	cheatsheet string
+	err        error
+}
+
 type tmuxConfAppliedMsg struct {
-	backedUp bool
-	err      error
+	backedUp          bool
+	cheatsheetApplied bool
+	err               error
 }
 
 type tmuxConfRestoredMsg struct {
@@ -62,6 +75,20 @@ func (m *TmuxConfModel) Resize(w, h int) {
 
 func (m *TmuxConfModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tmuxConfFetchedMsg:
+		if msg.err != nil {
+			m.status = "gist取得失敗（ローカル設定を使用）: " + msg.err.Error()
+			m.statusIsErr = true
+			m.fetchedConfig = ""
+			m.fetchedCheatsheet = ""
+		} else {
+			m.status = ""
+			m.statusIsErr = false
+			m.fetchedConfig = msg.config
+			m.fetchedCheatsheet = msg.cheatsheet
+		}
+		return m, applyTmuxConfCmd(m.pendingBackup, m.fetchedConfig, m.fetchedCheatsheet)
+
 	case tmuxConfAppliedMsg:
 		if msg.err != nil {
 			m.status = "エラー: " + msg.err.Error()
@@ -69,9 +96,12 @@ func (m *TmuxConfModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = tmuxConfStateSelect
 		} else {
 			m.wasBackedUp = msg.backedUp
+			m.cheatsheetApplied = msg.cheatsheetApplied
 			m.doneCursor = 0
 			m.state = tmuxConfStateDone
-			m.status = ""
+			if m.status == "" {
+				m.status = ""
+			}
 		}
 		return m, nil
 
@@ -90,6 +120,11 @@ func (m *TmuxConfModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateSelect(msg)
 		case tmuxConfStateConfirm:
 			return m.updateConfirm(msg)
+		case tmuxConfStateFetching:
+			// 取得中はCtrl+Cのみ受け付ける
+			if msg.String() == "ctrl+c" {
+				m.done = true
+			}
 		case tmuxConfStateDone:
 			return m.updateDone(msg)
 		case tmuxConfStatePreview:
@@ -106,7 +141,9 @@ func (m *TmuxConfModel) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.confirmCursor = 0
 			m.state = tmuxConfStateConfirm
 		} else {
-			return m, applyTmuxConfCmd(false)
+			m.pendingBackup = false
+			m.state = tmuxConfStateFetching
+			return m, fetchGistCmd()
 		}
 	case "p":
 		m.previewScroll = 0
@@ -127,9 +164,13 @@ func (m *TmuxConfModel) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		switch m.confirmCursor {
 		case 0:
-			return m, applyTmuxConfCmd(true)
+			m.pendingBackup = true
+			m.state = tmuxConfStateFetching
+			return m, fetchGistCmd()
 		case 1:
-			return m, applyTmuxConfCmd(false)
+			m.pendingBackup = false
+			m.state = tmuxConfStateFetching
+			return m, fetchGistCmd()
 		case 2:
 			m.state = tmuxConfStateSelect
 		}
@@ -186,11 +227,39 @@ func (m *TmuxConfModel) updatePreview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func applyTmuxConfCmd(backup bool) tea.Cmd {
+func fetchGistCmd() tea.Cmd {
+	return func() tea.Msg {
+		config, err := tmuxconf.FetchURL(tmuxconf.ConfigGistURL)
+		if err != nil {
+			return tmuxConfFetchedMsg{err: err}
+		}
+		cheatsheet, err := tmuxconf.FetchURL(tmuxconf.CheatsheetGistURL)
+		if err != nil {
+			return tmuxConfFetchedMsg{err: err}
+		}
+		return tmuxConfFetchedMsg{config: config, cheatsheet: cheatsheet}
+	}
+}
+
+func applyTmuxConfCmd(backup bool, config, cheatsheet string) tea.Cmd {
 	return func() tea.Msg {
 		backedUp := backup && tmuxconf.Exists()
-		err := tmuxconf.Apply(backup)
-		return tmuxConfAppliedMsg{backedUp: backedUp, err: err}
+		var err error
+		if config != "" {
+			err = tmuxconf.ApplyContent(config, backup)
+		} else {
+			err = tmuxconf.Apply(backup)
+		}
+		if err != nil {
+			return tmuxConfAppliedMsg{backedUp: backedUp, err: err}
+		}
+		cheatsheetApplied := false
+		if cheatsheet != "" {
+			if cerr := tmuxconf.ApplyCheatsheet(cheatsheet); cerr == nil {
+				cheatsheetApplied = true
+			}
+		}
+		return tmuxConfAppliedMsg{backedUp: backedUp, cheatsheetApplied: cheatsheetApplied}
 	}
 }
 
@@ -209,6 +278,8 @@ func (m *TmuxConfModel) View() string {
 		body = m.viewSelect()
 	case tmuxConfStateConfirm:
 		body = m.viewConfirm()
+	case tmuxConfStateFetching:
+		body = m.viewFetching()
 	case tmuxConfStateDone:
 		body = m.viewDone()
 	case tmuxConfStatePreview:
@@ -236,6 +307,13 @@ func (m *TmuxConfModel) View() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, panel, statusLine, m.renderKeys())
+}
+
+func (m *TmuxConfModel) viewFetching() string {
+	return lipgloss.JoinVertical(lipgloss.Left,
+		"",
+		styleDim.Render("gist からコンフィグを取得中..."),
+	)
 }
 
 func (m *TmuxConfModel) viewSelect() string {
@@ -304,6 +382,13 @@ func (m *TmuxConfModel) viewDone() string {
 	var lines []string
 	lines = append(lines, "", ok, "")
 
+	if m.cheatsheetApplied {
+		lines = append(lines,
+			styleGreen.Render("✓ ~/.tmux-cheatsheet.txt を配置しました"),
+			"",
+		)
+	}
+
 	if m.wasBackedUp {
 		lines = append(lines,
 			styleDim.Render("元の設定は ~/.tmux.conf.bak に保存されています。"),
@@ -366,6 +451,8 @@ func (m *TmuxConfModel) renderKeys() string {
 			{"p", "内容を表示"},
 			{"q / Esc", "スキップ"},
 		}
+	case tmuxConfStateFetching:
+		// 取得中はキーヒントなし
 	case tmuxConfStateConfirm:
 		hints = []struct{ key, desc string }{
 			{"j/k", "移動"},
