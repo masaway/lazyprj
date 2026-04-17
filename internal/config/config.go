@@ -126,8 +126,36 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
+// cleanupStale は存在しないディレクトリのエントリを設定から除去する
+func cleanupStale(cfg *Config) {
+	projects := cfg.Projects[:0]
+	for _, p := range cfg.Projects {
+		if _, err := os.Stat(p.Path); err == nil {
+			projects = append(projects, p)
+		}
+	}
+	cfg.Projects = projects
+
+	hidden := cfg.HiddenProjects[:0]
+	for _, p := range cfg.HiddenProjects {
+		if _, err := os.Stat(p.Path); err == nil {
+			hidden = append(hidden, p)
+		}
+	}
+	cfg.HiddenProjects = hidden
+
+	skipped := cfg.SkippedPaths[:0]
+	for _, path := range cfg.SkippedPaths {
+		if _, err := os.Stat(path); err == nil {
+			skipped = append(skipped, path)
+		}
+	}
+	cfg.SkippedPaths = skipped
+}
+
 // Save は設定を ~/.config/muxflow/config.json に保存する
 func Save(cfg *Config) error {
+	cleanupStale(cfg)
 	dir := configDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
