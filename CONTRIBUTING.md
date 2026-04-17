@@ -1,4 +1,4 @@
-# Contributing to lazyprj
+# Contributing to muxflow
 
 バグ報告・機能提案・プルリクエスト、どれも歓迎です。
 
@@ -6,7 +6,7 @@
 
 ## バグ報告・機能提案
 
-[Issues](https://github.com/masaway/lazyprj/issues) からテンプレートを選んで投稿してください。
+[Issues](https://github.com/masaway/muxflow/issues) からテンプレートを選んで投稿してください。
 
 ---
 
@@ -37,16 +37,16 @@ git push origin feature/your-feature-name
 ### 開発環境のセットアップ
 
 ```bash
-git clone https://github.com/masaway/lazyprj
-cd lazyprj
+git clone https://github.com/masaway/muxflow
+cd muxflow
 go mod tidy
 ```
 
 ### ビルドと動作確認
 
 ```bash
-go build -o lazyprj .
-./lazyprj
+go build -o muxflow .
+./muxflow
 ```
 
 ### PRを送る前に

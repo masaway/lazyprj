@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/masaway/lazyprj/internal/config"
+	"github.com/masaway/muxflow/internal/config"
 )
 
 var socket string
 
-// SetSocket は使用する tmux ソケット名を設定する（例: "lazyprj-demo"）。
+// SetSocket は使用する tmux ソケット名を設定する（例: "muxflow-demo"）。
 // 空文字の場合はデフォルトソケットを使用する。
 func SetSocket(s string) {
 	socket = s

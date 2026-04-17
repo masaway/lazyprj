@@ -82,13 +82,13 @@ func (p *Project) MigrateFromCommands() {
 	p.Windows = []Window{w}
 }
 
-// configDir は設定ディレクトリ (~/.config/lazyprj/) を返す
+// configDir は設定ディレクトリ (~/.config/muxflow/) を返す
 func configDir() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "lazyprj")
+		return filepath.Join(xdg, "muxflow")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "lazyprj")
+	return filepath.Join(home, ".config", "muxflow")
 }
 
 var configSocket string
@@ -125,7 +125,7 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
-// Save は設定を ~/.config/lazyprj/config.json に保存する
+// Save は設定を ~/.config/muxflow/config.json に保存する
 func Save(cfg *Config) error {
 	dir := configDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {

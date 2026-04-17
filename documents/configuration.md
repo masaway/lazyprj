@@ -4,9 +4,9 @@
 
 | パス | 説明 |
 |------|------|
-| `~/.config/lazyprj/config.json` | 設定ファイル |
+| `~/.config/muxflow/config.json` | 設定ファイル |
 
-`XDG_CONFIG_HOME` が設定されている場合は `$XDG_CONFIG_HOME/lazyprj/config.json` を使用します。
+`XDG_CONFIG_HOME` が設定されている場合は `$XDG_CONFIG_HOME/muxflow/config.json` を使用します。
 
 ---
 

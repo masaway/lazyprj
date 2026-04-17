@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/masaway/lazyprj/internal/config"
+	"github.com/masaway/muxflow/internal/config"
 )
 
 // QuickstartModel は任意ディレクトリからセッションを作成する画面

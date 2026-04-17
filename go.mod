@@ -1,4 +1,4 @@
-module github.com/masaway/lazyprj
+module github.com/masaway/muxflow
 
 go 1.24.11
 

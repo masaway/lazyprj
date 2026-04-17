@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/masaway/lazyprj/internal/config"
+	"github.com/masaway/muxflow/internal/config"
 )
 
 // ScanModel は新規プロジェクトスキャン画面

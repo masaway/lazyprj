@@ -1,4 +1,4 @@
-# lazyprj 画面フロー図
+# muxflow 画面フロー図
 
 ## 全体画面遷移
 
@@ -156,7 +156,7 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant User as ユーザー
-    participant App as lazyprj
+    participant App as muxflow
     participant Config as 設定ファイル
     participant Tmux as tmux
 
