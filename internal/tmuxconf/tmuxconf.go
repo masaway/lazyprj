@@ -2,8 +2,15 @@ package tmuxconf
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+)
+
+const (
+	ConfigGistURL     = "https://gist.githubusercontent.com/masaway/4d86173343b90d96f74a9c77447a61c7/raw/.tmux.conf"
+	CheatsheetGistURL = "https://gist.githubusercontent.com/masaway/421857eb1959fb5ac73fe453dbb483c8/raw/.tmux-cheatsheet.txt"
 )
 
 // RecommendedConfig はツール制作者推奨の tmux 設定
@@ -82,6 +89,44 @@ set -g focus-events on
 # muxflow: PREFIX+m でポップアップ起動
 bind m run-shell 'tmux display-popup -E -h 90% -w 90% "muxflow"'
 `
+
+// FetchURL は指定URLの内容をHTTP GETで取得して返す
+func FetchURL(url string) (string, error) {
+	resp, err := http.Get(url) //nolint:gosec
+	if err != nil {
+		return "", fmt.Errorf("取得失敗: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTPエラー: %d", resp.StatusCode)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("読み込み失敗: %w", err)
+	}
+	return string(b), nil
+}
+
+// CheatsheetPath は ~/.tmux-cheatsheet.txt のフルパスを返す
+func CheatsheetPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".tmux-cheatsheet.txt")
+}
+
+// ApplyContent は指定コンテンツを ~/.tmux.conf に書き込む
+func ApplyContent(content string, backup bool) error {
+	if backup && Exists() {
+		if err := os.Rename(ConfigPath(), BackupPath()); err != nil {
+			return fmt.Errorf("バックアップ失敗: %w", err)
+		}
+	}
+	return os.WriteFile(ConfigPath(), []byte(content), 0644)
+}
+
+// ApplyCheatsheet は指定コンテンツを ~/.tmux-cheatsheet.txt に書き込む
+func ApplyCheatsheet(content string) error {
+	return os.WriteFile(CheatsheetPath(), []byte(content), 0644)
+}
 
 // ConfigPath は ~/.tmux.conf のフルパスを返す
 func ConfigPath() string {
