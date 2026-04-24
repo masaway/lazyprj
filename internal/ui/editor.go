@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -67,14 +68,14 @@ type EditorModel struct {
 }
 
 type paneFormState struct {
-	dirOptions  []string
-	dirCursor   int
-	dirInput    textinput.Model
+	dirOptions   []string
+	dirCursor    int
+	dirInput     textinput.Model
 	dirInputMode bool
-	cmd         textinput.Model
-	execute     bool
-	focus       int // 0=dir, 1=cmd, 2=execute
-	isNew       bool
+	cmd          textarea.Model
+	execute      bool
+	focus        int // 0=dir, 1=cmd, 2=execute
+	isNew        bool
 }
 
 type windowFormState struct {
@@ -158,10 +159,14 @@ func newPaneForm(p config.Pane, proj config.Project, isNew bool) paneFormState {
 		dirInput.Focus()
 	}
 
-	cmd := textinput.New()
+	cmd := textarea.New()
 	cmd.Placeholder = "例: npm run dev"
 	cmd.SetValue(p.Command)
-	cmd.Width = 38
+	cmd.ShowLineNumbers = false
+	cmd.SetWidth(38)
+	cmd.SetHeight(3)
+	cmd.MaxHeight = 6
+	cmd.CharLimit = 0
 
 	return paneFormState{dirOptions: opts, dirCursor: cursor, dirInput: dirInput, dirInputMode: dirInputMode, cmd: cmd, execute: p.Execute, focus: 0, isNew: isNew}
 }
@@ -275,6 +280,10 @@ func (m *EditorModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "enter", "w", "ctrl+s":
+			// cmd textarea フォーカス中は Enter を textarea に渡して改行挿入
+			if key.String() == "enter" && m.formMode == editorFormPane && m.paneForm.focus == 1 {
+				break
+			}
 			// テキスト入力フォーカス中は w をそのままテキスト入力に渡す
 			if key.String() == "w" {
 				if m.formMode == editorFormPane && (m.paneForm.dirInputMode || m.paneForm.focus == 1) {
@@ -434,6 +443,7 @@ func (m *EditorModel) cyclePaneFormFocus(fwd bool) {
 		m.paneForm.dirInput.Focus()
 	}
 }
+
 
 func (m *EditorModel) cycleWindowFormFocus(fwd bool) {
 	n := 3 // name, layout, dir
@@ -688,6 +698,17 @@ func (m *EditorModel) saveCmd() tea.Cmd {
 	}
 }
 
+// commandOneLine は複数行コマンドを "; " でつないで1行にする
+func commandOneLine(cmd string) string {
+	var parts []string
+	for _, line := range strings.Split(cmd, "\n") {
+		if t := strings.TrimSpace(line); t != "" {
+			parts = append(parts, t)
+		}
+	}
+	return strings.Join(parts, "; ")
+}
+
 // truncateStr は表示幅単位で文字列を切り詰め、超過時は "..." を付ける
 func truncateStr(s string, maxW int) string {
 	if runewidth.StringWidth(s) <= maxW {
@@ -902,7 +923,7 @@ func (m *EditorModel) renderPanePanel(totalW, totalH int) string {
 			if dir == "" {
 				dir = "."
 			}
-			cmd := pane.Command
+			cmd := commandOneLine(pane.Command)
 			if cmd == "" {
 				cmd = "—"
 			}
@@ -1022,7 +1043,13 @@ func (m *EditorModel) renderPaneFormBox() string {
 	if f.focus == 1 {
 		cmdLabel = lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render("Command ")
 	}
-	sb.WriteString(cmdLabel + "  " + f.cmd.View() + "\n\n")
+	sb.WriteString(cmdLabel + "\n")
+	sb.WriteString(f.cmd.View() + "\n")
+	// 複数行のとき実行時プレビューを表示
+	if joined := commandOneLine(f.cmd.Value()); strings.Contains(f.cmd.Value(), "\n") && joined != "" {
+		sb.WriteString(styleDim.Render("→ "+joined) + "\n")
+	}
+	sb.WriteString("\n")
 
 	// Execute
 	execLabel := styleDim.Render("Execute ")
@@ -1043,9 +1070,11 @@ func (m *EditorModel) renderPaneFormBox() string {
 
 	// ヒント
 	if f.dirInputMode {
-		sb.WriteString(styleDim.Render("Esc リストに戻る  Enter 保存"))
+		sb.WriteString(styleDim.Render("Esc リストに戻る  Ctrl+S 保存"))
+	} else if f.focus == 1 {
+		sb.WriteString(styleDim.Render("Enter 改行  Ctrl+S 保存  Tab 次へ"))
 	} else {
-		sb.WriteString(styleDim.Render("Esc キャンセル  Enter 保存"))
+		sb.WriteString(styleDim.Render("Esc キャンセル  Ctrl+S 保存"))
 	}
 
 	return lipgloss.NewStyle().

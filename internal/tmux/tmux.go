@@ -109,6 +109,17 @@ func resolveDir(projectPath, paneDir string) string {
 	return filepath.Join(projectPath, paneDir)
 }
 
+// joinCommand は複数行コマンドを "; " でつないで1行にする
+func joinCommand(cmd string) string {
+	var parts []string
+	for _, line := range strings.Split(cmd, "\n") {
+		if t := strings.TrimSpace(line); t != "" {
+			parts = append(parts, t)
+		}
+	}
+	return strings.Join(parts, "; ")
+}
+
 // shellQuote はシェルコマンド内でパスを安全に使えるようシングルクォートでエスケープする
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
@@ -177,10 +188,11 @@ func CreateSession(project *config.Project, killExisting bool) (bool, error) {
 			}
 
 			if pane.Command != "" {
+				cmd := joinCommand(pane.Command)
 				if pane.Execute {
-					runCmd("send-keys", "-t", paneTarget, pane.Command, "Enter")
+					runCmd("send-keys", "-t", paneTarget, cmd, "Enter")
 				} else {
-					runCmd("send-keys", "-t", paneTarget, pane.Command)
+					runCmd("send-keys", "-t", paneTarget, cmd)
 				}
 			}
 		}
