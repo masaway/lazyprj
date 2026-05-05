@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/masaway/muxflow/internal/config"
 )
@@ -125,6 +126,19 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
+func waitPaneCurrentPath(target, expectedPath string) {
+	expectedPath = filepath.Clean(expectedPath)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		code, out := runCmd("display-message", "-p", "-t", target, "#{pane_current_path}")
+		if code == 0 && filepath.Clean(strings.TrimSpace(out)) == expectedPath {
+			time.Sleep(50 * time.Millisecond)
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
 // CreateSession はプロジェクト設定からtmuxセッションを作成する
 func CreateSession(project *config.Project, killExisting bool) (bool, error) {
 	name := project.Name
@@ -182,6 +196,7 @@ func CreateSession(project *config.Project, killExisting bool) (bool, error) {
 			paneTarget := fmt.Sprintf("%s.%d", winTarget, paneIdx)
 
 			if pane.Command != "" {
+				waitPaneCurrentPath(paneTarget, paneDir)
 				cmd := joinCommand(pane.Command)
 				if pane.Execute {
 					runCmd("send-keys", "-t", paneTarget, cmd, "Enter")
