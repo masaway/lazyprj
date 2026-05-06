@@ -48,22 +48,22 @@ type App struct {
 	pendingAttach string
 	initialLoad   bool
 
-	sortActiveFirst   bool
+	sortActiveFirst  bool
 	originalProjects []config.Project // ソート前の順序を保持
 
 	detailScroll int
 	listScroll   int
 
 	// 確認ダイアログ
-	confirmTarget         string   // 確認対象のセッション名（空 = ダイアログ非表示）
+	confirmTarget          string   // 確認対象のセッション名（空 = ダイアログ非表示）
 	confirmActiveProcesses []string // ダイアログ表示用: 実行中プロセス名
 
 	// tmux同期確認ダイアログ
 	pendingSyncCfg      *config.Config
 	pendingSyncSessions map[string]bool
-	pendingSyncNames    []string            // 変更されるプロジェクト名一覧
-	pendingSyncChoices  []windowSyncChoice  // ウィンドウごとの選択状態
-	pendingSyncCursor   int                 // ダイアログ内カーソル位置
+	pendingSyncNames    []string           // 変更されるプロジェクト名一覧
+	pendingSyncChoices  []windowSyncChoice // ウィンドウごとの選択状態
+	pendingSyncCursor   int                // ダイアログ内カーソル位置
 
 	// サブ画面
 	currentScreen screen
@@ -883,6 +883,11 @@ func (m *App) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		for _, p := range m.cfg.Projects {
 			if p.Name == name {
+				if tmux.CurrentSession() == name {
+					m.status = fmt.Sprintf("現在のセッション '%s' は再起動できません", name)
+					m.statusIsErr = true
+					return m, nil
+				}
 				m.status = fmt.Sprintf("再起動中: %s ...", name)
 				m.statusIsErr = false
 				return m, restartSessionCmd(p)
@@ -1146,7 +1151,7 @@ func (m *App) renderHelpDialog(bg string) string {
 			{"A", "自動起動を全て起動"},
 			{"K / J", "順番を上 / 下に移動"},
 			{"o", "ソート切替（アクティブ優先 / カスタム順）"},
-				{"X", "非表示へ移動 / 復元"},
+			{"X", "非表示へ移動 / 復元"},
 		}},
 		{"スキャン", []entry{
 			{"s", "スキャン実行"},
@@ -1167,7 +1172,7 @@ func (m *App) renderHelpDialog(bg string) string {
 
 	colContentW := 40
 	pad := 2
-	colStyle := lipgloss.NewStyle().Width(colContentW + pad*2).Padding(1, pad)
+	colStyle := lipgloss.NewStyle().Width(colContentW+pad*2).Padding(1, pad)
 	descMaxW := colContentW - keyW - 1
 	descIndent := strings.Repeat(" ", keyW+1)
 

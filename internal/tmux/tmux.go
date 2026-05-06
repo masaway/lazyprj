@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/masaway/muxflow/internal/config"
 )
@@ -74,7 +75,16 @@ func SessionExists(name string) bool {
 
 // KillSession は指定セッションを停止する
 func KillSession(name string) error {
-	return exec.Command("tmux", "kill-session", "-t", name).Run()
+	cmd := exec.Command("tmux", socketArgs([]string{"kill-session", "-t", name})...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg != "" {
+			return fmt.Errorf("%s", msg)
+		}
+		return err
+	}
+	return nil
 }
 
 var shellProcesses = map[string]bool{
@@ -125,6 +135,27 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
+func waitPaneCurrentPath(target, expectedPath string) {
+	expectedPath = filepath.Clean(expectedPath)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		code, out := runCmd("display-message", "-p", "-t", target, "#{pane_current_path}")
+		if code == 0 && filepath.Clean(strings.TrimSpace(out)) == expectedPath {
+			time.Sleep(50 * time.Millisecond)
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func parseWindowPaneTarget(out string, fallbackWindow, fallbackPane string) (string, string) {
+	parts := strings.SplitN(strings.TrimSpace(out), "|", 2)
+	if len(parts) == 2 && parts[0] != "" && parts[1] != "" {
+		return parts[0], parts[1]
+	}
+	return fallbackWindow, fallbackPane
+}
+
 // CreateSession はプロジェクト設定からtmuxセッションを作成する
 func CreateSession(project *config.Project, killExisting bool) (bool, error) {
 	name := project.Name
@@ -154,7 +185,7 @@ func CreateSession(project *config.Project, killExisting bool) (bool, error) {
 
 	firstWindow := true
 	for winIdx, window := range project.Windows {
-		winTarget := fmt.Sprintf("%s:%d", name, winIdx)
+		fallbackWinTarget := fmt.Sprintf("%s:%d", name, winIdx)
 
 		// pane 0 のディレクトリ（new-window に使う）
 		firstPaneDir := path
@@ -162,26 +193,37 @@ func CreateSession(project *config.Project, killExisting bool) (bool, error) {
 			firstPaneDir = resolveDir(path, window.Panes[0].Dir)
 		}
 
+		winTarget := fallbackWinTarget
+		paneTargets := map[int]string{0: fmt.Sprintf("%s.0", fallbackWinTarget)}
 		if firstWindow {
-			runCmd("new-session", "-d", "-s", name, "-c", firstPaneDir, "-n", window.Name)
+			_, out := runCmd("new-session", "-d", "-P", "-F", "#{window_id}|#{pane_id}", "-s", name, "-c", firstPaneDir, "-n", window.Name)
+			winTarget, paneTargets[0] = parseWindowPaneTarget(out, fallbackWinTarget, paneTargets[0])
 			firstWindow = false
 		} else {
-			runCmd("new-window", "-t", name, "-n", window.Name, "-c", firstPaneDir)
+			_, out := runCmd("new-window", "-P", "-F", "#{window_id}|#{pane_id}", "-t", name, "-n", window.Name, "-c", firstPaneDir)
+			winTarget, paneTargets[0] = parseWindowPaneTarget(out, fallbackWinTarget, paneTargets[0])
 		}
+		runCmd("set-window-option", "-t", winTarget, "@muxflow_window_dir", firstPaneDir)
 
 		for paneIdx, pane := range window.Panes {
 			paneDir := resolveDir(path, pane.Dir)
 
 			if paneIdx > 0 {
-				runCmd("split-window", "-t", winTarget, "-c", paneDir)
+				_, out := runCmd("split-window", "-P", "-F", "#{pane_id}", "-t", winTarget, "-c", paneDir)
+				if paneID := strings.TrimSpace(out); paneID != "" {
+					paneTargets[paneIdx] = paneID
+				} else {
+					paneTargets[paneIdx] = fmt.Sprintf("%s.%d", winTarget, paneIdx)
+				}
 				// 分割後すぐにレイアウトを適用することで、ペインが小さくなりすぎて
 				// 次の split-window が失敗するのを防ぐ
 				runCmd("select-layout", "-t", winTarget, window.Layout)
 			}
 
-			paneTarget := fmt.Sprintf("%s.%d", winTarget, paneIdx)
+			paneTarget := paneTargets[paneIdx]
 
 			if pane.Command != "" {
+				waitPaneCurrentPath(paneTarget, paneDir)
 				cmd := joinCommand(pane.Command)
 				if pane.Execute {
 					runCmd("send-keys", "-t", paneTarget, cmd, "Enter")
@@ -192,7 +234,7 @@ func CreateSession(project *config.Project, killExisting bool) (bool, error) {
 		}
 
 		runCmd("select-layout", "-t", winTarget, window.Layout)
-		runCmd("select-pane", "-t", fmt.Sprintf("%s.0", winTarget))
+		runCmd("select-pane", "-t", paneTargets[0])
 	}
 
 	runCmd("select-window", "-t", fmt.Sprintf("%s:0", name))
@@ -255,7 +297,28 @@ func IsInsideTmux() bool {
 
 // SwitchClient はtmuxのswitch-clientを実行する（tmux内専用）
 func SwitchClient(name string) error {
-	return exec.Command("tmux", socketArgs([]string{"switch-client", "-t", name})...).Run()
+	cmd := exec.Command("tmux", socketArgs([]string{"switch-client", "-t", name})...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg != "" {
+			return fmt.Errorf("%s", msg)
+		}
+		return err
+	}
+	return nil
+}
+
+// CurrentSession は現在のtmuxクライアントのセッション名を返す。
+func CurrentSession() string {
+	if !IsInsideTmux() {
+		return ""
+	}
+	code, out := runCmd("display-message", "-p", "#{session_name}")
+	if code != 0 {
+		return ""
+	}
+	return strings.TrimSpace(out)
 }
 
 // AttachOrSwitch はtmux内ならswitch-client、外ならattach-sessionを実行する
@@ -267,5 +330,8 @@ func AttachOrSwitch(name string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("attach-session failed: %w", err)
+	}
+	return nil
 }

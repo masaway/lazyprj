@@ -69,8 +69,10 @@ bind -r K resize-pane -U 5
 bind -r L resize-pane -R 5
 
 # ペイン分割
-bind \\ split-window -h
-bind - split-window -v
+bind \\ split-window -h -c "#{?@muxflow_window_dir,#{@muxflow_window_dir},#{pane_current_path}}"
+bind - split-window -v -c "#{?@muxflow_window_dir,#{@muxflow_window_dir},#{pane_current_path}}"
+bind % split-window -h -c "#{?@muxflow_window_dir,#{@muxflow_window_dir},#{pane_current_path}}"
+bind '"' split-window -v -c "#{?@muxflow_window_dir,#{@muxflow_window_dir},#{pane_current_path}}"
 
 # 設定リロード
 bind r source-file ~/.tmux.conf \; display-message "Config reloaded!"
