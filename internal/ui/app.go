@@ -314,12 +314,32 @@ func killSessionCmd(name string) tea.Cmd {
 
 func restartSessionCmd(p config.Project) tea.Cmd {
 	return func() tea.Msg {
+		p = latestProjectConfig(p)
 		if err := tmux.KillSession(p.Name); err != nil {
 			return sessionRestartedMsg{name: p.Name, err: err}
 		}
 		_, err := tmux.CreateSession(&p, false)
 		return sessionRestartedMsg{name: p.Name, err: err}
 	}
+}
+
+func latestProjectConfig(p config.Project) config.Project {
+	cfg, err := config.Load()
+	if err != nil || cfg == nil {
+		return p
+	}
+
+	for _, latest := range cfg.Projects {
+		if latest.Name == p.Name && latest.Path == p.Path {
+			return latest
+		}
+	}
+	for _, latest := range cfg.Projects {
+		if latest.Name == p.Name {
+			return latest
+		}
+	}
+	return p
 }
 
 func checkActiveProcessesCmd(p config.Project) tea.Cmd {
